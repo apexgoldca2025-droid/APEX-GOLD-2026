@@ -1,50 +1,100 @@
-# APEX GOLD — Catálogo Táctico
+import { createAPIFileRoute } from '@tanstack/start/api';
+import { v2 as cloudinary } from 'cloudinary';
+import { v4 as uuidv4 } from 'uuid';
+import { db } from '../../../db';
+import { contactMessages, products } from '../../../db/schema';
 
-Catálogo web de APEX GOLD: botas, zapatos, gorras y equipo táctico. Los clientes
-exploran el catálogo, filtran por categoría, ven detalles (tallas, colores,
-disponibilidad) y consultan cada producto por WhatsApp con un mensaje
-pre-llenado. Incluye un formulario de contacto y un panel de administración
-protegido para gestionar los productos.
+// -----------------------------------------------------------------------------
+// CONFIGURACIÓN DE SERVICIOS
+// -----------------------------------------------------------------------------
 
-## Funcionalidades
+// Configuración de Cloudinary para reemplazo de Netlify Blobs
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
-- **Inicio** (`/`): portada, categorías, catálogo con filtros y búsqueda, sección de contacto.
-- **Detalle de producto** (`/productos/:id`): imagen, precio, tallas/colores seleccionables y botón "Consultar por WhatsApp".
-- **Formulario de contacto**: envíos recibidos con Netlify Forms (panel de Netlify → Forms).
-- **Panel admin** (`/admin`, login en `/ingresar`): crear, editar y eliminar productos, subir imágenes, marcar como agotado o destacado.
+// -----------------------------------------------------------------------------
+// ENDPOINT 1: FORMULARIO DE CONTACTO (/api/contact)
+// Reemplaza Netlify Forms guardando directamente en la base de datos PostgreSQL
+// -----------------------------------------------------------------------------
+export const ContactRoute = createAPIFileRoute('/api/contact')({
+  POST: async ({ request }) => {
+    try {
+      const data = await request.json();
+      const { name, email, message } = data;
 
-## Tecnologías
+      if (!name || !email || !message) {
+        return new Response(
+          JSON.stringify({ error: 'Todos los campos (nombre, email, mensaje) son requeridos.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
 
-- TanStack Start (React 19, TanStack Router) + Vite + Tailwind CSS 4
-- Netlify Database (Postgres) con Drizzle ORM — productos
-- Netlify Blobs — imágenes subidas desde el panel
-- Netlify Identity — acceso de administradores (rol `admin`)
-- Netlify Forms — formulario de contacto
-- Netlify Image CDN — imágenes optimizadas (WebP, tamaño adaptado)
+      // Guardar mensaje en PostgreSQL vía Drizzle ORM
+      await db.insert(contactMessages).values({
+        id: uuidv4(),
+        name,
+        email,
+        message,
+        createdAt: new Date(),
+      });
 
-## Configurar el primer administrador
+      return new Response(
+        JSON.stringify({ success: true, message: 'Mensaje recibido correctamente.' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    } catch (error) {
+      return new Response(
+        JSON.stringify({ error: 'Error interno al procesar el mensaje.' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+  },
+});
 
-1. En Netlify: **Project configuration → Identity → Registration** y ponlo en *Invite only* (recomendado).
-2. Opción A: agrega la variable de entorno `ADMIN_EMAILS` (p. ej. `tucorreo@gmail.com`, separados por comas). Esas cuentas reciben el rol `admin` al registrarse/aceptar la invitación.
-   Opción B: después de aceptar la invitación, abre el usuario en **Identity** y agrega el rol `admin` manualmente.
-3. En **Identity → Invite users**, invita tu correo. Abre el enlace del correo, crea tu contraseña y serás llevado a `/admin`.
+// -----------------------------------------------------------------------------
+// ENDPOINT 2: SUBIDA DE IMÁGENES (/api/upload)
+// Reemplaza Netlify Blobs subiendo archivos directamente a Cloudinary
+// -----------------------------------------------------------------------------
+export const UploadRoute = createAPIFileRoute('/api/upload')({
+  POST: async ({ request }) => {
+    try {
+      const formData = await request.formData();
+      const file = formData.get('file') as File;
 
-## Desarrollo local
+      if (!file) {
+        return new Response(
+          JSON.stringify({ error: 'No se ha adjuntado ningún archivo.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
 
-```bash
-pnpm install
-netlify dev
-```
+      // Convertir el archivo a Buffer para transmisión
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
 
-La autenticación (Identity) y los formularios solo funcionan en un deploy de
-Netlify (preview o producción), no en localhost.
+      // Subida hacia Cloudinary
+      const uploadResult = await new Promise<{ url: string }>((resolve, reject) => {
+        cloudinary.uploader.upload_stream(
+          { folder: 'apex-gold-products' },
+          (error, result) => {
+            if (error || !result) reject(error);
+            else resolve({ url: result.secure_url });
+          }
+        ).end(buffer);
+      });
 
-## Base de datos
-
-El esquema está en `db/schema.ts`. Tras cambiarlo, genera una migración:
-
-```bash
-npx drizzle-kit generate --name <descripcion_del_cambio>
-```
-
-Las migraciones (`netlify/database/migrations/`) se aplican automáticamente en cada deploy. La migración `seed_products` carga los 8 productos iniciales.
+      return new Response(
+        JSON.stringify({ success: true, url: uploadResult.url }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      );
+    } catch (error) {
+      return new Response(
+        JSON.stringify({ error: 'Error al procesar y subir la imagen.' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+  },
+});
