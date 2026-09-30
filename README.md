@@ -1,100 +1,43 @@
-import { createAPIFileRoute } from '@tanstack/start/api';
-import { v2 as cloudinary } from 'cloudinary';
-import { v4 as uuidv4 } from 'uuid';
-import { db } from '../../../db';
-import { contactMessages, products } from '../../../db/schema';
+# 🛡️ Catálogo Táctico — APEX GOLD
 
-// -----------------------------------------------------------------------------
-// CONFIGURACIÓN DE SERVICIOS
-// -----------------------------------------------------------------------------
+Un catálogo web moderno, rápido e intuitivo diseñado para exhibir equipamiento, indumentaria y accesorios tácticos. Permite a los usuarios explorar productos, aplicar filtros avanzados por categoría y realizar consultas directas vía WhatsApp con un mensaje pre-llenado.
 
-// Configuración de Cloudinary para reemplazo de Netlify Blobs
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+---
 
-// -----------------------------------------------------------------------------
-// ENDPOINT 1: FORMULARIO DE CONTACTO (/api/contact)
-// Reemplaza Netlify Forms guardando directamente en la base de datos PostgreSQL
-// -----------------------------------------------------------------------------
-export const ContactRoute = createAPIFileRoute('/api/contact')({
-  POST: async ({ request }) => {
-    try {
-      const data = await request.json();
-      const { name, email, message } = data;
+## 🚀 Características Principales
 
-      if (!name || !email || !message) {
-        return new Response(
-          JSON.stringify({ error: 'Todos los campos (nombre, email, mensaje) son requeridos.' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
+- ** Catálogo Interactivo:** Búsqueda en tiempo real y filtrado dinámico por categoría (Botas, Indumentaria, Iluminación, Cuchillos, Mochilas).
+- ** Ficha de Producto:** Vista detallada con selector de tallas, variantes de color, disponibilidad en stock y galería de imágenes.
+- ** Pedidos & Consultas por WhatsApp:** Botón directo que genera una URL con un mensaje personalizado (`https://wa.me/...`) incluyendo el nombre, color y talla seleccionada del producto.
+- ** Formulario de Contacto Directo:** Espacio para consultas de ventas al mayor o soporte al cliente.
+- ** Panel Administrativo (CMS):** Interfaz para agregar, editar, ocultar o eliminar productos del catálogo de forma sencilla.
+- ** Diseñado para Móviles (Responsive):** Experiencia de navegación fluida desde smartphones y tablets.
 
-      // Guardar mensaje en PostgreSQL vía Drizzle ORM
-      await db.insert(contactMessages).values({
-        id: uuidv4(),
-        name,
-        email,
-        message,
-        createdAt: new Date(),
-      });
+---
 
-      return new Response(
-        JSON.stringify({ success: true, message: 'Mensaje recibido correctamente.' }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      );
-    } catch (error) {
-      return new Response(
-        JSON.stringify({ error: 'Error interno al procesar el mensaje.' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-  },
-});
+## 🛠️ Tecnologías Utilizadas
 
-// -----------------------------------------------------------------------------
-// ENDPOINT 2: SUBIDA DE IMÁGENES (/api/upload)
-// Reemplaza Netlify Blobs subiendo archivos directamente a Cloudinary
-// -----------------------------------------------------------------------------
-export const UploadRoute = createAPIFileRoute('/api/upload')({
-  POST: async ({ request }) => {
-    try {
-      const formData = await request.formData();
-      const file = formData.get('file') as File;
+- **Frontend:** React 19 / Vite / Tailwind CSS 4
+- **Routing & State:** TanStack Router / TanStack Query
+- **Base de Datos:** PostgreSQL
+- **ORM:** Drizzle ORM
+- **Gestión de Imágenes:** Cloudinary API
+- **Autenticación (Admin):** JWT & HTTP-Only Cookies
 
-      if (!file) {
-        return new Response(
-          JSON.stringify({ error: 'No se ha adjuntado ningún archivo.' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } }
-        );
-      }
+---
 
-      // Convertir el archivo a Buffer para transmisión
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+## 📁 Estructura del Proyecto
 
-      // Subida hacia Cloudinary
-      const uploadResult = await new Promise<{ url: string }>((resolve, reject) => {
-        cloudinary.uploader.upload_stream(
-          { folder: 'apex-gold-products' },
-          (error, result) => {
-            if (error || !result) reject(error);
-            else resolve({ url: result.secure_url });
-          }
-        ).end(buffer);
-      });
-
-      return new Response(
-        JSON.stringify({ success: true, url: uploadResult.url }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      );
-    } catch (error) {
-      return new Response(
-        JSON.stringify({ error: 'Error al procesar y subir la imagen.' }),
-        { status: 500, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-  },
-});
+```text
+.
+├── app/
+│   ├── components/       # Componentes reutilizables (Tarjetas, Filtros, Navbar, Footer)
+│   ├── routes/           # Rutas públicas (/productos, /contacto) y protegidas (/admin)
+│   └── api/              # Endpoints para backend (Upload de imágenes, Mensajes, Auth)
+├── db/
+│   ├── schema.ts         # Definición de las tablas (Productos, Usuarios, Mensajes)
+│   └── index.ts          # Conexión a PostgreSQL
+├── public/               # Assets estáticos (Logos, favicons, banners)
+├── .env.example          # Plantilla de variables de entorno
+├── drizzle.config.ts     # Configuración de migraciones
+└── package.json
