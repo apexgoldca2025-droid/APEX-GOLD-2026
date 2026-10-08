@@ -17,8 +17,8 @@ const productos = [
   },
   {
     id: 3,
-    nombre: "Gorra Urbana",
-    precio: 10.00,
+    nombre: "Gorra Camuflada",
+    precio: 23.00,
     imagen: "https://via.placeholder.com/200"
   }
 ];
@@ -30,7 +30,7 @@ function cargarCatalogo() {
   productos.forEach(producto => {
     // Generar el mensaje predeterminado para WhatsApp
     const mensaje = encodeURIComponent(
-      `¡Hola! Estoy interesado en comprar: ${producto.nombre} por $${producto.precio.toFixed(2)}.`
+      `¡Hola! Estoy interesado en comprar: ${producto.nombre}  $${producto.precio.toFixed(2)}.`
     );
     const urlWhatsApp = `https://wa.me/${NUMERO_WHATSAPP}?text=${mensaje}`;
 
