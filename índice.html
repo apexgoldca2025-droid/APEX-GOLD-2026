@@ -1,0 +1,8 @@
+<!-- Colocar esto justo antes de cerrar el </body> -->
+<div id="modalImagen" class="modal-overlay" onclick="cerrarModal()">
+  <div class="modal-contenido" onclick="event.stopPropagation()">
+    <button class="btn-cerrar-modal" onclick="cerrarModal()">&times;</button>
+    <img id="modalImg" class="modal-imagen" src="" alt="Vista ampliada">
+    <div id="modalTitulo" style="color: white; text-align: center; margin-top: 10px;"></div>
+  </div>
+</div>
