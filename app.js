@@ -19,7 +19,7 @@ const productos = [
     id: 3,
     nombre: "Gorra Camuflada",
     precio: 23.00,
-    imagen: "https://via.placeholder.com/200"
+    imagen: "IMG_20261005_164952_452.jpg"
   }
 ];
 
